@@ -79,10 +79,10 @@ for x in range(0, steps):
                             with open("./data/{}/{}.idx".format(westnordost_link.group(1), westnordost_link.group(2)), 'w') as f:
                                 f.write(r.headers['location'] + "\n")
                                 part_saved_westnordost_links = part_saved_westnordost_links + 1
-        print("Partial stats: step notes: {}, step closed notes: {}, step westnordost links: {}, step saved westnordost links: {}".format(part_notes, part_closed_notes, part_westnordost_links, part_saved_westnordost_links))
-        total_notes = total_notes + 1
-        total_closed_notes = total_closed_notes + 1
-        total_westnordost_links = total_westnordost_links + 1
-        total_saved_westnordost_links = total_saved_westnordost_links + 1
+        print("[Partial stats for this sub-area] notes: {}, closed notes: {}, westnordost links: {}, saved westnordost links: {}".format(part_notes, part_closed_notes, part_westnordost_links, part_saved_westnordost_links))
+        total_notes = total_notes + part_notes
+        total_closed_notes = total_closed_notes + part_closed_notes
+        total_westnordost_links = total_westnordost_links + part_westnordost_links
+        total_saved_westnordost_links = total_saved_westnordost_links + part_saved_westnordost_links
 
-print("Final stats for this run: checked notes: closed notes: {}, total westnordost links: {}, total saved westnordost links: {}".format(total_notes, total_closed_notes, total_westnordost_links, total_saved_westnordost_links))
+print("[Final stats for this run] notes: {} closed notes: {}, total westnordost links: {}, total saved westnordost links: {}".format(total_notes, total_closed_notes, total_westnordost_links, total_saved_westnordost_links))
