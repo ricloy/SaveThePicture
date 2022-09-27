@@ -22,6 +22,9 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
 
+      - name: install requirements 
+        run: pip install lxml
+
       - name: Run a one-line script
         run: python3 ./src/osmnotes_picturebackup.py
       
