@@ -45,17 +45,17 @@ for x in range(0,steps):
                 first_comment = note.xpath('./comments/comment[1]/text/text()')[0]
                 westnordost_link = re.search(r'https://westnordost\.de/([a-z])/([0-9]+\.jpg)', first_comment)
                 if westnordost_link:
-                    if not exists("/tmp/data/{}/{}".format(westnordost_link.group(1), westnordost_link.group(2))):
-                        Path("/tmp/data/{}".format(westnordost_link.group(1))).mkdir(parents=True, exist_ok=True)
-                        with open("/tmp/data/{}/{}".format(westnordost_link.group(1), westnordost_link.group(2)),'w') as f:
+                    if not exists("./data/{}/{}".format(westnordost_link.group(1), westnordost_link.group(2))):
+                        Path("./data/{}".format(westnordost_link.group(1))).mkdir(parents=True, exist_ok=True)
+                        with open("./data/{}/{}".format(westnordost_link.group(1), westnordost_link.group(2)),'w') as f:
                             pass
                         retry = 0
                         print("Saving {} to {}".format(westnordost_link.group(1) + westnordost_link.group(2), (webarchive_url + westnordost_link.group(0))))
-                        r = requests.get(webarchive_url + westnordost_link.group(0))
+                        r = requests.head(webarchive_url + westnordost_link.group(0))
                         while (r is None or r.status_code != 302) and retry < MAX_RETRIES:
                             sleep(WAIT_TIME)
                             retry = retry + 1
-                            r = requests.get(webarchive_url + westnordost_link.group(0))
+                            r = requests.head(webarchive_url + westnordost_link.group(0))
                    	     
         
 #r = requests.get()
