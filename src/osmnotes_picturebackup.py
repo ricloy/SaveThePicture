@@ -46,6 +46,7 @@ session = requests.Session()
 adapter = HTTPAdapter(max_retries=MAX_RETRIES)
 session.mount("HTTPS://", adapter)
 
+Path(logfile).mkdir(parents=True, exist_ok=True)
 logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s:%(levelname)s: %(message)s')
 
 for x in range(0, steps):
