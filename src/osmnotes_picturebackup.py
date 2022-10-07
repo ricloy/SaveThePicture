@@ -14,15 +14,15 @@ from os.path import exists
 from pathlib import Path
 import logging
 
-api_url = "https://www.openstreetmap.org/api/0.6/notes"
-webarchive_url = "https://web.archive.org/save/"
-logfile = "./log/savethepicture.log"
+API_URL = "https://www.openstreetmap.org/api/0.6/notes"
+WEBARCHIVE_URL = "https://web.archive.org/save/"
+LOGFILE = "./log/savethepicture.log"
 
 # Italy bbox
-min_lat = 35.2889616
-max_lat = 47.0921462
-min_lon = 6.6272658
-max_lon = 18.7844746
+MIN_LAT = 35.2889616
+MAX_LAT = 47.0921462
+MIN_LON = 6.6272658
+MAX_LON = 18.7844746
 
 # Connection Timeout (both for API OSM server and web.archive.org)
 TIMEOUT = 60
@@ -33,10 +33,13 @@ MAX_RETRIES = 5
 # manual wait time in seconds between each retry
 WAIT_TIME = 10
 
-# BBOX is divided in a steps x steps grid
-steps = 4
+# minumum wait time between each saving on web.archive.org
+WAYBACK_WAIT_TIME = 60
 
-# total counters
+# BBOX is divided in a STEPS x STEPS grid
+STEPS = 4
+
+# total counters for showing stats
 total_notes = 0
 total_closed_notes = 0
 total_westnordost_links = 0
@@ -47,18 +50,57 @@ adapter = HTTPAdapter(max_retries=MAX_RETRIES)
 session.mount("HTTPS://", adapter)
 
 Path("./log").mkdir(parents=True, exist_ok=True)
-logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s:%(levelname)s: %(message)s')
+logging.basicConfig(filename=LOGFILE, level=logging.INFO, format='%(asctime)s:%(levelname)s: %(message)s')
 
-for x in range(0, steps):
-    for y in range(0, steps):
-        logging.info("Analysing bbox {}/{}…".format(x*steps + y + 1, steps * steps))
 
-        # bbox is one of the steps X steps rectangles inside the area identified by min_lat, max_lat, min_lon, max_lon
-        bbox = (min_lon + x*(max_lon - min_lon)/steps, min_lat + y*(max_lat - min_lat)/steps, min_lon + (x+1)*(max_lon - min_lon)/steps, min_lat + (y+1)*(max_lat - min_lat)/steps)
+# this function saves, if it hasn't already been done, a photo identified by link
+# on the Wayback Machine and writes some data in local CSV formatted file ./data/{directory}/{photo_name}.idx
+
+def save_photo_link(link, directory, photo_name):
+
+    # have we already saved this photo link in a previous run? If not…
+    if not exists("./data/{}/{}.idx".format(directory, photo_name)):
+        # if directory './data' doesn't exist create it
+        Path("./data/").mkdir(parents=True, exist_ok=True)
+
+        logging.info("Saving {} to {}".format(directory + photo_name, (WEBARCHIVE_URL + link)))
+
+        try:
+            r = session.head(WEBARCHIVE_URL + link, timeout=TIMEOUT)
+        except socket.timeout as e:
+            logging.critical("Error: something went wrong while connecting to web.archive.org server: {}; exiting…".format(e))
+            sys.exit(-4)
+        except ReadTimeout as e:
+            logging.critical("Error: read timeout while connecting to web.archive.org: {}; exiting…".format(e))
+            sys.exit(-5)
+        except ConnectionError as e:
+            logging.critical("Error: connection error while connecting to web.archive.org: {}; exiting…".format(e))
+            sys.exit(-6)
+        # we expect https://web.archive.org to return 302 when a link is saved with the HTTP location header pointing to the new link on https://web.archive.org
+        if r.status_code != 302:
+            logging.warning("Error: web.archive.org returned HTTP_CODE {} (expected 302); sleeping for {} seconds (saving current photo is skipped)…".format(r.status_code, WAIT_TIME))
+            sleep(WAYBACK_WAIT_TIME)
+            return False
+        # saving the web.archive.org link to a local file which will be used in the successive runs of this script
+        with open("./data/{}/{}.idx".format(directory, photo_name), 'w') as f:
+            # write CSV header
+            f.write("Latitude,Longitude,OSM Note link,Wayback Machine saved link")
+            # write CSV data
+            f.write(",".join([note.get('lat'), note.get('lon'), "https://www.openstreetmap.org/note/" + note.xpath('./id/text()[1]')[0], r.headers['location']]) + "\n")
+
+        sleep(WAYBACK_WAIT_TIME)
+        return True
+
+for x in range(0, STEPS):
+    for y in range(0, STEPS):
+        logging.info("Analysing bbox {}/{}…".format(x*STEPS + y + 1, STEPS * STEPS))
+
+        # bbox is one of the STEPS X STEPS rectangles inside the area identified by MIN_LAT, MAX_LAT, MIN_LON, MAX_LON
+        bbox = (MIN_LON + x*(MAX_LON - MIN_LON)/STEPS, MIN_LAT + y*(MAX_LAT - MIN_LAT)/STEPS, MIN_LON + (x+1)*(MAX_LON - MIN_LON)/STEPS, MIN_LAT + (y+1)*(MAX_LAT - MIN_LAT)/STEPS)
 
         try:
             # query the OSM API for a maximum of 10000 notes (either open or closed) inside the current rectangle
-            r = session.get(api_url + "?bbox=" + ",".join([str(x) for x in bbox]) + "&limit=10000", timeout=TIMEOUT)
+            r = session.get(API_URL + "?bbox=" + ",".join([str(x) for x in bbox]) + "&limit=10000", timeout=TIMEOUT)
         except socket.timeout as e:
             logging.critical("Error: something went wrong while connecting to the API server: {}; exiting…".format(e))
             sys.exit(-1)
@@ -76,7 +118,7 @@ for x in range(0, steps):
 
         notes = etree.fromstring(r.content)
 
-        # partial counters
+        # partial counters for showing stats
         part_notes = len(notes.getchildren())
         part_closed_notes = 0
         part_westnordost_links = 0
@@ -91,37 +133,13 @@ for x in range(0, steps):
                 comments = note.xpath('./comments/comment/text/text()')
                 # for every comment in the note
                 for comment in comments:
-                    # search for a link to a photo hosted on https://westnordost.de
-                    westnordost_link = re.search(r'https://westnordost\.de/([a-z])/([0-9]+\.jpg)', comment)
-                    if westnordost_link:
+
+                    # search for every link to a photo hosted on https://westnordost.de present in comment
+                    for westnordost_link in re.finditer(r'https://westnordost\.de/([a-z])/([0-9]+\.jpg)', comment):
                         part_westnordost_links = part_westnordost_links + 1
-                        # have we already saved this photo link in a previous run? If not…
-                        if not exists("./data/{}/{}.idx".format(westnordost_link.group(1), westnordost_link.group(2))):
-                            # if directory './data' doesn't exist create it
-                            Path("./data/").mkdir(parents=True, exist_ok=True)
+                        if save_photo_link(westnordost_link.group(0), westnordost_link.group(1), westnordost_link.group(2)):
+                            part_saved_westnordost_links = part_saved_westnordost_links + 1
 
-                            logging.info("Saving {} to {}".format(westnordost_link.group(1) + westnordost_link.group(2), (webarchive_url + westnordost_link.group(0))))
-
-                            try:
-                                r = session.head(webarchive_url + westnordost_link.group(0), timeout=TIMEOUT)
-                            except socket.timeout as e:
-                                logging.critical("Error: something went wrong while connecting to web.archive.org server: {}; exiting…".format(e))
-                                sys.exit(-4)
-                            except ReadTimeout as e:
-                                logging.critical("Error: read timeout while connecting to web.archive.org: {}; exiting…".format(e))
-                                sys.exit(-5)
-                            except ConnectionError as e:
-                                logging.critical("Error: connection error while connecting to web.archive.org: {}; exiting…".format(e))
-                                sys.exit(-6)
-                            # we expect https://web.archive.org to return 302 when a link is saved with the HTTP location header pointing to the new link on https://web.archive.org
-                            if r.status_code != 302:
-                                logging.warning("Error: web.archive.org returned HTTP_CODE {} (expected 302); sleeping for {} seconds (saving current photo is skipped)…".format(r.status_code, WAIT_TIME))
-                                sleep(WAIT_TIME)
-                                continue
-                            # saving the web.archive.org link to a local file which will be used in the successive runs of this script
-                            with open("./data/{}/{}.idx".format(westnordost_link.group(1), westnordost_link.group(2)), 'w') as f:
-                                f.write(",".join([note.get('lat'), note.get('lon'), "https://www.openstreetmap.org/note/" + note.xpath('./id/text()[1]')[0], r.headers['location']]) + "\n")
-                                part_saved_westnordost_links = part_saved_westnordost_links + 1
         logging.info("[Partial stats for this sub-area] notes: {}, closed notes: {}, westnordost links: {}, saved westnordost links: {}".format(part_notes, part_closed_notes, part_westnordost_links, part_saved_westnordost_links))
         total_notes = total_notes + part_notes
         total_closed_notes = total_closed_notes + part_closed_notes
