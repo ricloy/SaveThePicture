@@ -84,7 +84,7 @@ def save_photo_link(link, directory, photo_name):
         # saving the web.archive.org link to a local file which will be used in the successive runs of this script
         with open("./data/{}/{}.idx".format(directory, photo_name), 'w') as f:
             # write CSV header
-            f.write("Latitude,Longitude,OSM Note link,Wayback Machine saved link")
+            f.write("Latitude,Longitude,OSM Note link,Wayback Machine saved link\n")
             # write CSV data
             f.write(",".join([note.get('lat'), note.get('lon'), "https://www.openstreetmap.org/note/" + note.xpath('./id/text()[1]')[0], r.headers['location']]) + "\n")
 
