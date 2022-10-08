@@ -26,7 +26,7 @@ jobs:
         run: pip install lxml
 
       - name: Run a one-line script
-        run: python3 ./src/osmnotes_picturebackup.py
+        run: python3 ./src/osmnotes_picturebackup.py || echo "Python script exited with error code $?" >>./log/action_$(date -Imin).halted
       
       # push changes to GITHUB
       - name: push changes
