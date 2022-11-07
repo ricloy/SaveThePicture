@@ -26,12 +26,14 @@ jobs:
         run: pip install lxml
 
       - name: Run a one-line script
-        run: python3 ./src/osmnotes_picturebackup.py || echo "Python script exited with error code $?" >>./log/action_$(date -Imin).halted
+        run: |
+          echo "beforetime=$(date -Iminutes)" >> $GITHUB_ENV
+          python3 ./src/osmnotes_picturebackup.py || echo "Python script exited with error code $?" >>./log/action_$(date -Imin).halted
       
       # push changes to GITHUB
       - name: push changes
         run: |
           git config user.name "actionman"
           git add -A
-          git commit -m "Latest update: $(date -Iminutes); Saved: $(find ./data/ -type f -mmin -360 -name '*.idx' | wc -l) photos (Tot: $(find ./data/ -type f -name '*.idx' | wc -l))" || exit 0
+          git commit -m "Latest update: $(date -Iminutes); Saved: $(find ./data/ -type f -newermt ${{ env.beforetime }} -name '*.idx' | wc -l) photos (Tot: $(find ./data/ -type f -name '*.idx' | wc -l))" || exit 0
           git push
