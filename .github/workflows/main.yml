@@ -27,7 +27,7 @@ jobs:
 
       - name: Run a one-line script
         run: |
-          echo "beforetime=$(date -Iminutes)" >> $GITHUB_ENV
+          echo "beforetime=$(date -Iseconds)" >> $GITHUB_ENV
           python3 ./src/osmnotes_picturebackup.py || echo "Python script exited with error code $?" >>./log/action_$(date -Imin).halted
       
       # push changes to GITHUB
