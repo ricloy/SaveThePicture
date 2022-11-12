@@ -33,7 +33,8 @@ jobs:
       # push changes to GITHUB
       - name: push changes
         run: |
-          git config user.name "actionman"
+          git config --locale user.email "ricloy@users.noreply.github.com"
+          git config --local user.name "actionman"
           git add -A
           git commit -m "Latest update: $(date -Iminutes); Saved: $(find ./data/ -type f -newermt ${{ env.beforetime }} -name '*.idx' | wc -l) photos (Tot: $(find ./data/ -type f -name '*.idx' | wc -l))" || exit 0
           git push
