@@ -4,7 +4,7 @@ name: Check closed OSM notes if they contain StreetComplete photos and if so, ba
 
 # Controls when the workflow will run
 on:
-  schedule:
+  # schedule:
     # * is a special character in YAML so you have to quote this string
     # - cron:  '00 07 * * *'
   # Allows you to run this workflow manually from the Actions tab
